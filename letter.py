@@ -1,13 +1,10 @@
 import os
 import logging
-
+from typing import List, Optional
 import numpy as np
 import svgwrite
-
 import drawing
-import lyrics
 from rnn import rnn
-
 
 class Hand(object):
 
@@ -149,65 +146,130 @@ class Hand(object):
         dwg.save()
 
 
-if __name__ == '__main__':
-    hand = Hand()
+class ModularHandwriter:
+    def __init__(self, base_hand):
+        """Initialize with an existing Hand instance"""
+        self.hand = Hand()
+        
+    def write_letter_section(
+        self,
+        text: str,
+        output_filename: str,
+        style: int = 7,
+        bias: float = 0.75,
+        stroke_color: str = 'black',
+        stroke_width: int = 2
+    ):
+        """Write a single section of text to an SVG file"""
+        lines = [text]  # Single line of text
+        biases = [bias]
+        styles = [style]
+        stroke_colors = [stroke_color]
+        stroke_widths = [stroke_width]
+        
+        self.hand.write(
+            filename=output_filename,
+            lines=lines,
+            biases=biases,
+            styles=styles,
+            stroke_colors=stroke_colors,
+            stroke_widths=stroke_widths
+        )
 
-    # usage demo
-    lines = [
-        "1 2 3 45 67 89",
-        "  53 76 68 98 ",
-        " 6 7 8 9 0",
-    ]
-    biases = [.75 for i in lines]
-    styles = [8 for i in lines]
-    stroke_colors = ['red', 'green', 'black', 'blue']
-    stroke_widths = [1, 2, 1, 2]
+    def write_complete_letter(
+        self,
+        salutation: str,
+        addressing: str,
+        body: str,
+        signature: Optional[str] = None,
+        output_dir: str = 'output',
+        base_filename: str = 'letter',
+        style_map: Optional[dict] = None,
+        bias_map: Optional[dict] = None
+    ):
+        """Write each section of the letter to separate files and optionally combine them"""
+        # Create output directory if it doesn't exist
+        os.makedirs(output_dir, exist_ok=True)
+        
+        # Default style and bias maps if none provided
+        default_style_map = {
+            'salutation': 7,  # More formal style
+            'addressing': 7,  # Consistent with salutation
+            'body': 7,       # Main content style
+            'signature': 8    # Slightly more personal style
+        }
+        
+        default_bias_map = {
+            'salutation': 0.75,  # More consistent writing
+            'addressing': 0.65,  # Slightly more variation
+            'body': 0.55,        # More natural variation
+            'signature': 0.85    # Very consistent signature
+        }
+        
+        style_map = style_map or default_style_map
+        bias_map = bias_map or default_bias_map
+        
+        # Generate individual sections
+        sections = {
+            'salutation': salutation,
+            'addressing': addressing,
+            'body': body
+        }
+        if signature:
+            sections['signature'] = signature
+            
+        # Write each section
+        output_files = {}
+        for section_name, content in sections.items():
+            output_filename = os.path.join(output_dir, f"{base_filename}_{section_name}.svg")
+            self.write_letter_section(
+                text=content,
+                output_filename=output_filename,
+                style=style_map[section_name],
+                bias=bias_map[section_name]
+            )
+            output_files[section_name] = output_filename
+            
+        return output_files
 
-    hand.write(
-        filename='img/usage_demo.svg',
-        lines=lines,
-        biases=biases,
-        styles=styles,
-        stroke_colors=stroke_colors,
-        stroke_widths=stroke_widths
-    )
-
-    # demo number 1 - fixed bias, fixed style
-    lines = lyrics.all_star.split("\n")
-    biases = [.75 for i in lines]
-    styles = [12 for i in lines]
-
-    hand.write(
-        filename='img/all_star.svg',
-        lines=lines,
-        biases=biases,
-        styles=styles,
-    )
-
-
-    # demo number 2 - fixed bias, varying style
-    lines = lyrics.downtown.split("\n")
-    biases = [.75 for i in lines]
-    styles = np.cumsum(np.array([len(i) for i in lines]) == 0).astype(int)
-
-    hand.write(
-        filename='img/downtown.svg',
-        lines=lines,
-        biases=biases,
-        styles=styles,
-    )
-
-
-    # demo number 3 - varying bias, fixed style
-
-    lines = lyrics.give_up.split("\n")
-    # lines = lyrics.give_up.split("\n")
-    biases = .2*np.flip(np.cumsum([len(i) == 0 for i in lines]), 0)
-    styles = [7 for i in lines]
-
-    hand.write(
-        filename='img/give_up.svg',
-        lines=lines,
-        biases=biases,
-        styles=styles,
+# Usage example
+if __name__ == "__main__":
+    
+    # Initialize the base hand and our modular writer
+    base_hand = Hand()
+    writer = ModularHandwriter(base_hand)
+    
+    # Define letter content
+    letter_content = {
+        'salutation': "Dear John,",
+        'addressing': "Thank you for reaching out to me regarding the project proposal.",
+        'body': "Here is the detailed information you requested about our implementation.",
+        'signature': "Best regards, Jane Smith"
+    }
+    
+    # Custom style and bias maps (optional)
+    custom_style_map = {
+        'salutation': 7,
+        'addressing': 7,
+        'body': 7,
+        'signature': 8
+    }
+    
+    custom_bias_map = {
+        'salutation': 0.8,
+        'addressing': 0.7,
+        'body': 0.6,
+        'signature': 0.9
+    }
+    
+    # Generate the letter sections
+    output_files = writer.write_complete_letter(
+        salutation=letter_content['salutation'],
+        addressing=letter_content['addressing'],
+        body=letter_content['body'],
+        signature=letter_content['signature'],
+        output_dir='output/letter_sections',
+        base_filename='business_letter',
+        style_map=custom_style_map,
+        bias_map=custom_bias_map
     )
