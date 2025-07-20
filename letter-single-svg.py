@@ -216,7 +216,7 @@ if __name__ == "__main__":
     
     # Define letter content with multiple lines, each under 75 characters
     letter_content = {
-        'salutation': "Dear Dr. Smith,\n123 Innovation Drive,\nSilicon Valley, CA 94025",
+        'salutation': "Testing\n123 Innovation Drive,\nSilicon Valley, CA 94025",
         
         'addressing': "I hope this letter finds you well.\nI am writing regarding our recent discussion about the AI project.",
         
